@@ -1,0 +1,81 @@
+name: Verify Project
+
+on:
+  push:
+    branches:
+      - main
+      - '**'
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up sui environment
+        working-directory: .
+        run: |
+          docker pull mysten/sui-tools:mainnet
+          docker create --name tmp_cont mysten/sui-tools:mainnet
+          docker cp tmp_cont:/usr/local/bin/sui ./sui
+          chmod +x ./sui
+          sudo mv ./sui /usr/local/bin/sui
+          sui --version
+
+      # Build the smart Contract
+      - name: Build and Test Move project
+        working-directory: move
+        run: sui move build && sui move test --verbose
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-22.04
+    if: github.ref == 'refs/heads/main'
+    
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+      actions: read
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: ui
+        run: npm i
+
+      - name: Build UI
+        working-directory: ui
+        run: npm run build
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+        with:
+          enablement: true
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ui/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+
