@@ -8,14 +8,13 @@ export const createHero = (
 ) => {
   const tx = new Transaction();
 
-  // EN: Add moveCall to create a hero.
-  // RU: Добавляем вызов Move-функции для создания героя.
+  // Add moveCall to create a hero.
   tx.moveCall({
-    target: `${packageId}::hero::create_hero`, // EN: Path to Move function. RU: Путь к функции Move.
+    target: `${packageId}::hero::create_hero`, // Path to Move function. 
     arguments: [
-      tx.pure.string(name), // EN: Hero name. RU: Имя героя.
-      tx.pure.string(imageUrl), // EN: Hero image URL. RU: URL картинки героя.
-      tx.pure.u64(BigInt(power)) // EN: Hero power as u64. RU: Сила героя как u64.
+      tx.pure.string(name), // Hero name. 
+      tx.pure.string(imageUrl), // Hero image URL. 
+      tx.pure.u64(BigInt(power)) // Hero power as u64. 
     ]
   });
 
