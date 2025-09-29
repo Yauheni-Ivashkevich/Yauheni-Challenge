@@ -1,8 +1,6 @@
 module challenge::hero;
 
-use std::string::String;
-use sui::object::{Self, UID, ID};
-use sui::tx_context::TxContext;
+use std::string::String; 
 
 // ========= СТРУКТУРЫ (STRUCTS) =========
 

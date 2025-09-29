@@ -3,9 +3,7 @@ module challenge::marketplace;
 use challenge::hero::Hero;
 use sui::coin::{Self, Coin};
 use sui::event;
-use sui::object;
 use sui::sui::SUI;
-use sui::tx_context::TxContext;
 
 // ========= ERRORS =========
 

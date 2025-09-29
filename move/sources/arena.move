@@ -1,112 +1,103 @@
 module challenge::arena;
 
-use challenge::hero::{Self, Hero};
-use sui::event;
-use sui::object::{Self, UID, ID};
-use sui::tx_context::TxContext;
+use challenge::hero::{Hero, hero_power}; // Импорт структуры Героя и функции hero_power
+use sui::event;                           // Импорт событий
+use sui::object::{new, id, delete};      // Работа с объектами (создание UID, получение ID, удаление)
+use sui::transfer::{public_transfer, share_object}; // Передача и публикация объектов
+use sui::tx_context::{sender, epoch_timestamp_ms}; // Получить адрес отправителя и текущее время
 
-// ========= СТРУКТУРЫ / STRUCTS =========
+        
+// ========= STRUCTS =========
 
-// Структура для представления арены с уникальным ID, героем-воином и адресом владельца
-// Structure representing an arena with a unique ID, warrior hero, and owner's address
 public struct Arena has key, store {
-    id: UID,
-    warrior: Hero,
-    owner: address,
+    id: UID,           // уникальный идентификатор арены // RU: уникальный ID арены
+    warrior: Hero,     // герой, выставленный на арену // RU: герой в арене
+    owner: address,    // владелец арены // RU: владелец арены
 }
 
-// ========= СОБЫТИЯ / EVENTS =========
+// ========= EVENTS =========
 
-// Событие создания арены (для логирования)
-// Event emitted when an arena is created
 public struct ArenaCreated has copy, drop {
-    arena_id: ID, // ID арены
-    timestamp: u64, // Время создания
+    arena_id: ID,       // ID арены // RU: ID арены
+    timestamp: u64,     // время создания // RU: время создания
 }
 
-// Событие завершения битвы
-// Event emitted when a battle completes
 public struct ArenaCompleted has copy, drop {
-    winner_hero_id: ID,
-    loser_hero_id: ID,
-    timestamp: u64,
+    winner_hero_id: ID, // ID героя победителя // RU: ID героя победителя
+    loser_hero_id: ID,  // ID героя проигравшего // RU: ID героя проигравшего
+    timestamp: u64,     // время окончания боя // RU: время окончания боя
 }
 
-// ========= ФУНКЦИИ / FUNCTIONS =========
+// ========= FUNCTIONS =========
 
-// Функция создания арены с героем-воином
-// Function to create an arena with a warrior hero
 public fun create_arena(hero: Hero, ctx: &mut TxContext) {
-    // Шаг 1: создаем уникальный ID для арены
-    // Step 1: create a unique ID for the arena
-    let id = object::new(ctx);
-
-    // Шаг 2: создаем арену, указываем героя и владельца (тот, кто вызывает транзакцию)
-    // Step 2: initialize arena struct with hero and owner (ctx.sender())
+    // EN: Step 1: Create new Arena object with unique ID, hero and owner
+    // RU: Шаг 1: Создаём новый объект арены с уникальным ID, героем и владельцем
     let arena = Arena {
-        id,
-        warrior: hero,
-        owner: ctx.sender(),
+        id: new(ctx),            // создаём новый UID // RU: новый UID
+        warrior: hero,           // кладём переданного героя // RU: используем переданного героя
+        owner: sender(ctx),      // владелец — адрес отправителя // RU: владелец — адрес отправителя
     };
 
-    // Шаг 3: логируем событие создания арены с ID и временем
-    // Step 3: emit ArenaCreated event with ID and timestamp
-    let event = ArenaCreated {
-        arena_id: object::id(&arena), // Получаем ID объекта арены
-        timestamp: ctx.epoch_timestamp_ms(), // Время создания
-    };
-    event::emit(event); // Отправляем событие
+    // EN: Step 2: Emit ArenaCreated event with arena ID and timestamp
+    // RU: Шаг 2: Генерируем событие о создании арены с ID и временем
+    event::emit(ArenaCreated {
+        arena_id: id(&arena),
+        timestamp: epoch_timestamp_ms(ctx),
+    });
 
-    // Делаем объект арены общедоступным
-    transfer::share_object(arena);
+    // EN: Step 3: Share arena object publicly so anyone can access
+    // RU: Шаг 3: Делаем арену публичной (шарим)
+    share_object(arena);
 }
 
-// Функция битвы между входящим героем и героем из арены
-// Function to battle between input hero and arena's warrior
 #[allow(lint(self_transfer))]
 public fun battle(hero: Hero, arena: Arena, ctx: &mut TxContext) {
-    // Шаг 1: разбираем арену на части — ID, воин и владелец
-    // Step 1: destructure arena to extract id, warrior, and owner
-    let Arena { id, warrior, owner } = arena;
+    // EN: Step 1: Destructure arena to get its fields
+    // RU: Шаг 1: Деструктурируем арену, чтобы получить её поля
+    let Arena { id: arena_uid, warrior, owner } = arena;
 
-    // Шаг 2: сравниваем силу героев
-    // Step 2: compare hero power levels
-    let challenger_power = hero::hero_power(&hero);
-    let defender_power = hero::hero_power(&warrior);
+    // EN: Step 2: Get powers of both heroes
+    // RU: Шаг 2: Получаем силу обоих героев
+    let hero_pwr = hero_power(&hero);
+    let warrior_pwr = hero_power(&warrior);
 
-    if (challenger_power > defender_power) {
-        // Если входящий герой сильнее
-        // If challenger hero wins
+    // EN: Step 3: Get IDs of both heroes
+    // RU: Шаг 3: Получаем ID обоих героев
+    let hero_id_val = id(&hero);
+    let warrior_id_val = id(&warrior);
 
-        // Отправляем обоих героев победителю (отправителю транзакции)
-        // Transfer both heroes to the challenger (ctx.sender())
-        transfer::public_transfer(warrior, ctx.sender());
+    // EN: Step 4: Compare powers and transfer heroes accordingly
+    // RU: Шаг 4: Сравниваем силы и передаём героев соответствующему владельцу
+    if (hero_pwr > warrior_pwr) {
+        // EN: Hero wins — transfer both heroes to sender
+        // RU: Герой победил — передаём обоих героев отправителю
+        public_transfer(hero, sender(ctx));
+        public_transfer(warrior, sender(ctx));
 
-        // Логируем победу
-        // Emit ArenaCompleted event
+        // EN: Emit ArenaCompleted event
+        // RU: Генерируем событие о завершении боя
         event::emit(ArenaCompleted {
-            winner_hero_id: object::id(&hero),
-            loser_hero_id: object::id(&warrior),
-            timestamp: ctx.epoch_timestamp_ms(),
+            winner_hero_id: hero_id_val,
+            loser_hero_id: warrior_id_val,
+            timestamp: epoch_timestamp_ms(ctx),
         });
     } else {
-        // Если воин арены побеждает
+        // EN: Warrior wins — transfer both heroes to arena owner
+        // RU: Воин победил — передаём обоих героев владельцу арены
+        public_transfer(hero, owner);
+        public_transfer(warrior, owner);
 
-        // Отправляем обоих героев владельцу арены
-        // Transfer both heroes to arena owner
-        transfer::public_transfer(hero, owner);
-        transfer::public_transfer(warrior, owner);
-
-        // Логируем результат
-        // Emit ArenaCompleted event
+        // EN: Emit ArenaCompleted event
+        // RU: Генерируем событие о завершении боя
         event::emit(ArenaCompleted {
-            winner_hero_id: object::id(&warrior),
-            loser_hero_id: object::id(&hero),
-            timestamp: ctx.epoch_timestamp_ms(),
+            winner_hero_id: warrior_id_val,
+            loser_hero_id: hero_id_val,
+            timestamp: epoch_timestamp_ms(ctx),
         });
-    }
+    };
 
-    // Шаг 3: удаляем арену, так как бой завершен
-    // Step 3: delete the arena object (battle completed)
-    object::delete(id);
+    // EN: Step 5: Delete arena UID (arena is closed)
+    // RU: Шаг 5: Удаляем объект арены (арена закрыта)
+    delete(arena_uid);
 }
