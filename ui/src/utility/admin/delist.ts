@@ -7,13 +7,15 @@ export const delist = (
 ) => {
   const tx = new Transaction();
 
-  // TODO: Add moveCall to delist a hero (Admin only)
-  // Function: `${packageId}::marketplace::delist`
-  // Arguments: adminCapId (object), listHeroId (object)
-    // Hints:
-    // Use tx.object() for both objects
-    // This requires admin capability verification
-    // Returns the hero to the original seller
+  // EN: Add moveCall to delist a hero (Admin only).
+  // RU: Добавляем вызов Move-функции для снятия героя с продажи (только админ).
+  tx.moveCall({
+    target: `${packageId}::marketplace::delist`,
+    arguments: [
+      tx.object(adminCapId), // EN: Admin capability. RU: Админская капабилити.
+      tx.object(listHeroId) // EN: Listed hero. RU: Объявленный герой.
+    ]
+  });
 
   return tx;
 };

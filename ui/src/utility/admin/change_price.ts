@@ -3,16 +3,20 @@ import { Transaction } from "@mysten/sui/transactions";
 export const changePrice = (packageId: string, listHeroId: string, newPriceInSui: string, adminCapId: string) => {
   const tx = new Transaction();
   
-  // TODO: Convert SUI to MIST (1 SUI = 1,000,000,000 MIST)
-    // Hints:
-    // const newPriceInMist = ?
-  // TODO: Add moveCall to change hero price (Admin only)
-  // Function: `${packageId}::marketplace::change_the_price`
-  // Arguments: adminCapId (object), listHeroId (object), newPriceInMist (u64)
-    // Hints:
-    // Use tx.object() for objects
-    // Use tx.pure.u64() for the new price
-    // Convert price from SUI to MIST before sending
+  // EN: Convert SUI to MIST.
+  // RU: Конвертируем SUI в MIST.
+  const newPriceInMist = BigInt(newPriceInSui) * 1_000_000_000n;
+
+  // EN: Add moveCall to change hero price (Admin only).
+  // RU: Добавляем вызов Move-функции для изменения цены (только админ).
+  tx.moveCall({
+    target: `${packageId}::marketplace::change_the_price`,
+    arguments: [
+      tx.object(adminCapId), // EN: Admin capability. RU: Админская капабилити.
+      tx.object(listHeroId), // EN: Listed hero. RU: Объявленный герой.
+      tx.pure.u64(newPriceInMist) // EN: New price in MIST. RU: Новая цена в MIST.
+    ]
+  });
   
   return tx;
 };
